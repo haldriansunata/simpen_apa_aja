@@ -1,0 +1,42 @@
+apakah berdasarkan table mentah yang kita punya yang agregatnya bulanan, bisa kita hubungkan dengan maskapai, bandara, provinsi? dan apakah bisa kita buatkan table dim maskapai, dim bandara, dan dim provinsi? dan apakah jika kita melakukan ini akan mempengaruhi dim/fact yang sudah generate sebelumnya? aku ingin lebih dalam di pecahnya seperti snowflake.
+
+pada fact lalu lintas bandara , sebenarnya kita bisa juga kan pecah lagi beberapa table dim, missal dim provinsi, dim bandara, tipe penerbangan
+
+lalu "kategori dan tipe penerbangan" pada kolom "fact penumpang rute bulanan, fact penumpang agregat bulanan dan fact lalu lintas bandara" sebenarnya bisa dibuatkan dim nya juga yah??
+
+lalu fact penumpang rute bulanan dengan fact penumpang agregat bulanan memiliki struktur kolom Waktu yang berbeda? di agregat bulanan kita bergantung pada waktu_id saja, namun pada agregat bulanan kita melakukan redundan tahun bulan? aku tahu kata mu ini redundan bermanfaat, tapi kenapa tidak dilakukan ke fact penumpang rute bulanan juga??? aku tahu data di penumpang rute bulanan ada banyak, tapi bukankah cuma 19rb itu masih tergolong sedikit? kayaknya fact penumpang agregat bulanan kita hapus aja ga sih? karena kita bisa sortir langsung lewat table fact penumpang rute bulanan? gimana menurutmu? berikan jawaban objektif dan opsi opsi dengan keunggulan dan kekurangannya masing masing.
+
+apakah dim rute bisa kita tambahkan fk provinsi a provinsi b? jika kita membuat dim provinsi? menurut mu gimana? apakah menambah manfaat?
+
+dim rute dari bab 3 aja ambilnya lalu cocokan dengan bab vi rute bulanan dan lakukan pertahun dulu. 
+
+fact penumpang rute bulanan kenapa cuma ada 19651? owh karena ""[!NOTE] Estimasi realistis: DOM ~400 rute × rata-rata ~10 bulan aktif × 5 tahun ≈ 20.000 + INT ~150 rute × ~10 bulan × 5 tahun ≈ 7.500. Baris dengan penumpang NULL/kosong tidak disimpan di output CSV." aku mau disimpan semua" ini yah? bisa ga kalo kita gak hilangkan yang null/kosong karena memang datanya null/kosong dari pemerintah dan memang masuk table, gapapa? kalo hitung semua kira kira gini yah :
+{
+
+2020(DOM,INT):
+409, 148
+
+2021: 
+380, 145
+
+2022:
+374, 133
+
+2023:
+303, 125
+
+2024:
+314, 134
+
+rata-rata(DOM,INT):  
+356, 137
+
+(356 x 12 bulan = 4,272 ) 
+(137 x 12 bulan = 1644)
+4,272 + 1644 = 5,916 (per tahun menghasilkan segini kira kira)
+
+5,916 x 5 tahun = 29,580
+
+}
+
+
