@@ -1,0 +1,192 @@
+https://hubud.kemenhub.go.id/hubud/website/bandara
+
+apakah berdasarkan table mentah yang kita punya yang agregatnya bulanan, bisa kita hubungkan dengan maskapai, bandara, provinsi? dan apakah bisa kita buatkan table, dim bandara, dan dim provinsi? dan apakah jika kita melakukan ini akan mempengaruhi dim/fact yang sudah generate sebelumnya? aku ingin lebih dalam di pecahnya seperti snowflake.
+
+pada fact lalu lintas bandara , sebenarnya kita bisa juga kan pecah lagi beberapa table dim, missal dim provinsi, dim bandara, tipe penerbangan
+
+lalu "kategori dan tipe penerbangan" pada kolom "fact penumpang rute bulanan, fact penumpang agregat bulanan dan fact lalu lintas bandara" sebenarnya bisa dibuatkan dim nya juga yah??
+
+lalu fact penumpang rute bulanan dengan fact penumpang agregat bulanan memiliki struktur kolom Waktu yang berbeda? di agregat bulanan kita bergantung pada waktu_id saja, namun pada agregat bulanan kita melakukan redundan tahun bulan? aku tahu kata mu ini redundan bermanfaat, tapi kenapa tidak dilakukan ke fact penumpang rute bulanan juga??? aku tahu data di penumpang rute bulanan ada banyak, tapi bukankah cuma 19rb itu masih tergolong sedikit? kayaknya fact penumpang agregat bulanan kita hapus aja ga sih? karena kita bisa sortir langsung lewat table fact penumpang rute bulanan? gimana menurutmu? berikan jawaban objektif dan opsi opsi dengan keunggulan dan kekurangannya masing masing.
+
+apakah dim rute bisa kita tambahkan fk provinsi a provinsi b? jika kita membuat dim provinsi? menurut mu gimana? apakah menambah manfaat?
+
+dim rute dari bab 3 aja ambilnya lalu cocokan dengan bab vi rute bulanan dan lakukan pertahun dulu. 
+
+fact penumpang rute bulanan kenapa cuma ada 19651? owh karena ""[!NOTE] Estimasi realistis: DOM ~400 rute × rata-rata ~10 bulan aktif × 5 tahun ≈ 20.000 + INT ~150 rute × ~10 bulan × 5 tahun ≈ 7.500. Baris dengan penumpang NULL/kosong tidak disimpan di output CSV." aku mau disimpan semua" ini yah? bisa ga kalo kita gak hilangkan yang null/kosong karena memang datanya null/kosong dari pemerintah dan memang masuk table, gapapa? kalo hitung semua kira kira gini yah :
+{
+
+2020(DOM,INT):
+409, 148
+
+2021: 
+380, 145
+
+2022:
+374, 133
+
+2023:
+303, 125
+
+2024:
+314, 134
+
+rata-rata(DOM,INT):  
+356, 137
+
+(356 x 12 bulan = 4,272 ) 
+(137 x 12 bulan = 1644)
+4,272 + 1644 = 5,916 (per tahun menghasilkan segini kira kira)
+
+5,916 x 5 tahun = 29,580
+
+}
+'
+===================================================
+ANALISA DATA
+- BAB III dan BAB VI berelasi, lewat rute(kode rute yang mengandung nama kota. namun kita nama kota kita tidak akan ambil dari sini, karena kita akan membuat dim bandara dari kode rute tersebut yang akan mengandung lokasi ). dan keduanya bisa bekerjasama dalam pembentukan Fact_Penumpang_Rute:
+BAB III RUTE ANGKUTAN UDARA NIAGA BERJADWAL DALAM NEGERI&LUAR NEGRI TAHUN 202...(2 file) 
+dan
+BAB VI JUMLAH PENUMPANG PER RUTE ANGKUTAN UDARA NIAGA BERJADWAL DALAM&LUAR NEGERI BULAN JANUARI S.D DESEMBER TAHUN 202...(2 file) 
+========================================================================================================================
+ANALISIS DATA
+hipotesis saya : aku memiliki DATA LALU LINTAS ANGKUTAN UDARA DI BANDAR UDARA TAHUN 2020 - 2024 yang dimana merupakan gabungan dari 2 file 'DATA LALU LINTAS ANGKUTAN PENUMPANG DAN KARGO DALAM NEGERI DI BANDAR UDARA INDONESIA TAHUN 2020-2024 dan DATA LALU LINTAS ANGKUTAN PENUMPANG DAN KARGO LUAR NEGERI DI BANDAR UDARA INDONESIA TAHUN 2020-2024', sehingga yang kita pakai hanya DATA LALU LINTAS ANGKUTAN UDARA DI BANDAR UDARA TAHUN 2020 - 2024.
+menurut hipotesis saya, table ini adalah calon fact table yang kemungkinan dapat dihubungkan dengan 'Fact_Penumpang_Rute yang sebelumnya kita rancang' melalui dim_bandara. 
+analisis saya: pada rute , kita punya hubungan antar bandara yang membentuk rute. lalu setiap bandara bisa punya banyak rute. tiap rute punya jumlah penumpang perbulan. pada data lalu lintas, kita punya bandara dan setiap bandara memiliki agregat movement flight brk dtg. 'berangkat + datang' pada kolom penumpang = jumalah penumpang, artinya jumlah penumpang disini sama dengan yang di rute. dimana kalau dirute kita bisa mengagregatkan jumlah penumpang pada rute untuk bandara spesifik yang memiliki banyak rute, dan harusnya hasilnya sama. tapi keuntungannya kita menggabungkan kedua table ini adalah kita bisa tahu berangkat + datang nya. serta kategori rute dan data lalu lintas tidak dapat disatukan karena satu kategori untuk rute, dan satunya kategori untuk bandara.
+kesimpulan data ini bukan bisa di hubungkan/digabung, tapi data ini bisa sama sama bisa terhubung ke dim_bandara.
+========================================================================================================================
+Keputusan yang sangat tepat untuk memasukkan metrik kedatangan (`dtg`) dan keberangkatan (`brk`). Dalam analisis aviasi, membedakan arus masuk dan keluar sangat krusial untuk melihat tren operasional sebuah bandara.
+
+Berikut adalah rangkuman utuh yang sudah digabungkan dengan poin-poin terbaru sesuai permintaanmu (tanpa mengubah isi rangkuman sebelumnya), lengkap dengan pembaruan pada Blueprint Final Data Warehouse:
+
+### 📌 Rangkuman Insight Desain Data Warehouse
+
+**1. Penanganan Lokasi dan Rute (Konsep *Role-Playing Dimension*)**
+* **Isu:** Data penerbangan melibatkan dua lokasi (Asal dan Tujuan). Apakah perlu membuat `Dim_Provinsi` atau `Dim_Kota` secara terpisah?
+* **Solusi:** Tidak perlu memecah lokasi menjadi tabel provinsi atau kota. Cukup buat satu dimensi master, yaitu **`Dim_Bandara`**, yang merangkum hierarki lokasi (Bandara -> Kota -> Provinsi -> Negara). Untuk menghubungkan 2 bandara dalam satu rute penerbangan, gunakan **`Dim_Rute`** yang memiliki dua *Foreign Key* (FK) yang mengarah ke tabel `Dim_Bandara` yang sama (satu sebagai bandara ke-1, satu sebagai bandara ke-2).
+
+**2. Efisiensi dan Penghapusan Redundansi**
+* **Isu:** Kolom apa saja yang harus dihapus untuk menghindari redundansi antar tabel?
+* **Solusi:** * **Hapus `kota_a` dan `kota_b` dari `Dim_Rute`:** Atribut deskriptif lokasi murni milik `Dim_Bandara`. `Dim_Rute` hanya bertindak sebagai jembatan logika (menyimpan kunci/ID).
+    * **Pindahkan `Kategori` (Domestik/Internasional):** Karena status domestik/internasional adalah sifat mutlak dari sebuah rute, letakkan kolom ini di `Dim_Rute`. Hapus kolom `Kategori` dari *Fact Table* agar tabel fakta tetap ramping dan hanya berisi angka (*Measures*) serta kunci (*Foreign Keys*).
+
+**3. Pemilihan Arsitektur: *Star Schema* vs *Snowflake Schema***
+* **Isu:** Mengapa kita memilih menumpuk data lokasi di `Dim_Bandara` (Denormalisasi/Star Schema) alih-alih memecahnya menjadi tabel-tabel kecil (Normalisasi/Snowflake Schema)?
+* **Solusi:** Untuk kebutuhan analitik (OLAP) dengan *tools* seperti Tableau/Power BI, kecepatan *query* (membaca data) adalah prioritas utama. *Star Schema* meminimalkan operasi *JOIN*, sehingga jauh lebih cepat. *Snowflake Schema* hanya digunakan pada kondisi darurat/khusus, seperti adanya hierarki data yang sangat masif dan sering berubah nilainya, atau saat ada relasi *many-to-many* (membutuhkan tabel *bridge* khusus). Untuk kasusmu, *Star Schema* adalah pilihan paling presisi dan efisien.
+
+**4. Evaluasi Analisamu: `Fact_Penumpang_Rute` & `Dim_Kurs_Bulanan`**
+* **Isu:** Apakah analisa menggunakan *Star Schema* untuk `Fact_Penumpang_Rute` dan `Dim_Kurs_Bulanan` sudah benar tanpa perlu dimensi lokasi yang dipecah?
+* **Solusi:** Analisamu 100% benar. Jika tabel faktamu nanti hanya akan dihubungkan dengan `Dim_Rute`, `Dim_Waktu`, dan `Dim_Kurs_Bulanan`, maka memecah lokasi menjadi `Dim_Provinsi` adalah tindakan yang sia-sia dan over-engineering. `Dim_Kurs_Bulanan` (misalnya nilai tukar USD ke IDR) hanya peduli pada Waktu (Bulan/Tahun), bukan lokasi. Karena tidak ada dimensi lain yang perlu meminjam/menggunakan tabel referensi "Provinsi" secara mandiri, maka menaruh nama provinsi langsung di dalam `Dim_Bandara` (Star Schema) adalah langkah yang paling brilian dan efisien.
+
+**5. Penanganan Perbedaan Grain (Tingkat Detail Data)**
+* **Isu:** Ditemukan dataset baru (lalu lintas bandara tahunan) yang memiliki metrik serupa (jumlah penumpang) tetapi dengan tingkat detail (*grain*) yang berbeda: agregat 1 bandara (tahunan) vs spesifik 1 rute (bulanan). Apakah keduanya harus digabung?
+* **Solusi:** Jangan digabungkan ke dalam satu tabel fakta, dan jangan korbankan data bulanan menjadi tahunan. Buatlah **Tabel Fakta Baru** (`Fact_Lalu_Lintas_Bandara`) yang hidup berdampingan dengan `Fact_Penumpang_Rute`. Keduanya dihubungkan secara elegan melalui konsep **Conformed Dimension** (Dimensi yang Disepakati), yaitu menggunakan `Dim_Bandara` yang sama. Ini memungkinkan analis melakukan *Drill-Across* (analisis lintas tabel tanpa merusak detail masing-masing data).
+
+**6. Pemahaman Metrik Aviasi & Penempatan Kategori Terminal**
+* **Isu:** Apa definisi operasional dari kolom Pesawat, Bagasi, Barang, dan Pos? Dan bagaimana menangani konflik penempatan status Domestik/Internasional untuk data bandara?
+* **Solusi:** 'Pesawat' merujuk pada frekuensi penerbangan/pergerakan (bukan jumlah fisik pesawat), 'Bagasi' adalah koper bawaan penumpang, 'Barang' adalah muatan kargo komersial, dan 'Pos' adalah kiriman pos resmi. Untuk kategori Domestik/Internasional pada data bandara, atribut ini diekstrak dari operasional terminal bandara dan disisipkan sebagai kolom `kategori` murni di dalam `Fact_Lalu_Lintas_Bandara`.
+
+---
+
+### 🚀 Blueprint Final Data Warehouse (Checkpoint)
+
+Berikut adalah struktur final skema DWH untuk modul Penumpang Rute Penerbangan dan Lalu Lintas Bandara:
+
+#### A. Tabel Dimensi (Konteks Deskriptif)
+
+**1. `Dim_Bandara`**
+*(Satu sumber kebenaran untuk semua lokasi, diratakan/denormalisasi. Bertindak sebagai Conformed Dimension).*
+| Nama Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| **bandara_id** | Primary Key | *Surrogate Key* (ID Unik) |
+| kode_iata | Natural Key | Kode bandara (misal: CGK, DPS) |
+| nama_bandara | Text | Nama bandara (misal: Soekarno-Hatta) |
+| kota | Text | Kota lokasi bandara |
+| provinsi | Text | Provinsi lokasi bandara (NULL untuk Luar Negeri) |
+| negara | Text | Negara asal bandara |
+
+**2. `Dim_Rute`**
+*(Tabel relasi yang mengikat 2 bandara dan menyimpan atribut rute)*
+| Nama Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| **rute_id** | Primary Key | *Surrogate Key* (ID Unik) |
+| kode_rute | Natural Key | Kode gabungan (misal: AAP-BDJ) |
+| bandara_1_id | Foreign Key | Mengarah ke `Dim_Bandara` (bandara asal/ke-1) |
+| bandara_2_id | Foreign Key | Mengarah ke `Dim_Bandara` (bandara tujuan/ke-2) |
+| kategori | Text | 'DOMESTIK' atau 'INTERNASIONAL' |
+
+**3. `Dim_Waktu`**
+*(Dimensi standar untuk slicing waktu. Dapat melayani Fact Table bulanan maupun tahunan)*
+| Nama Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| **waktu_id** | Primary Key | Format YYYYMM (misal: 202401) atau YYYY (misal: 2024) |
+| bulan | Integer | 1 s.d 12 (Bisa NULL jika datanya tahunan) |
+| tahun | Integer | misal: 2024 |
+
+**4. `Dim_Kurs_Bulanan`**
+*(Untuk menghubungkan nilai tukar berdasarkan bulan)*
+| Nama Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| **waktu_id** | PK / FK | Mengarah ke `Dim_Waktu` |
+| nilai_tukar_usd | Numeric | Nilai konversi IDR ke USD pada bulan tersebut |
+
+#### B. Tabel Fakta (Metrik Kuantitatif)
+
+**1. `Fact_Penumpang_Rute`**
+*(Grain: Rute, Bulanan. Sangat ramping, terpusat pada kunci dan metrik rute)*
+| Nama Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| **waktu_id** | Foreign Key | Mengarah ke `Dim_Waktu` |
+| **rute_id** | Foreign Key | Mengarah ke `Dim_Rute` |
+| jumlah_penumpang | Numeric | Metrik/Measure (total penumpang PP) |
+
+**2. `Fact_Lalu_Lintas_Bandara`**
+*(Grain: 1 Bandara, Tahunan. Mengakomodasi detail kedatangan (dtg) dan keberangkatan (brk))*
+| Nama Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| **waktu_id** | Foreign Key | Mengarah ke `Dim_Waktu` (Format Tahun) |
+| **bandara_id** | Foreign Key | Mengarah ke `Dim_Bandara` |
+| kategori | Text | 'DOMESTIK' atau 'INTERNASIONAL' (Diekstrak dari terminal) |
+| pesawat_dtg | Numeric | Jumlah pergerakan pesawat datang |
+| pesawat_brk | Numeric | Jumlah pergerakan pesawat berangkat |
+| pesawat_total | Numeric | Total pergerakan pesawat |
+| penumpang_dtg | Numeric | Jumlah penumpang datang |
+| penumpang_brk | Numeric | Jumlah penumpang berangkat |
+| penumpang_tra | Numeric | Jumlah penumpang transit |
+| penumpang_total | Numeric | Total jumlah penumpang |
+| bagasi_dtg | Numeric | Berat bagasi datang |
+| bagasi_brk | Numeric | Berat bagasi berangkat |
+| bagasi_total | Numeric | Total berat bagasi |
+| barang_dtg | Numeric | Berat kargo/barang datang |
+| barang_brk | Numeric | Berat kargo/barang berangkat |
+| barang_total | Numeric | Total berat kargo/barang |
+| pos_dtg | Numeric | Berat kiriman pos datang |
+| pos_brk | Numeric | Berat kiriman pos berangkat |
+| pos_total | Numeric | Total berat kiriman pos |
+
+========================================================================================================================
+dim_rute ngaco, mungkin kita bisa pakai pendekatan dari bab 3, pertama kita ambil RUTE ANGKUTAN UDARA NIAGA BERJADWAL DALAM NEGERI TAHUN (2020, 2021, 2022,2023,2024).csv dan RUTE ANGKUTAN UDARA NIAGA BERJADWAL LUAR NEGERI TAHUN (2020, 2021, 2022,2023,2024).csv.
+0 NO,RUTE (ASAL),RUTE (TUJUAN)
+1 NO,RUTE (ASAL),RUTE (TUJUAN)
+2 NO,RUTE (ASAL - TUJUAN)
+3 NO,RUTE (PP)
+4 NO,RUTE (PP)
+========================================================================================================================
+aku punya table TINGKAT KETEPATAN WAKTU (ON TIME PERFORMANCE) BADAN USAHA ANGKUTAN UDARA NIAGA PENERBANGAN NIAGA BERJADWAL DALAM NEGERI 2024 , dengan isi 14 data maskapai :[
+NO,BADAN USAHA,2018,2019,2020,2021,2022,2023,2024
+1,PT. Asi Pudjiastuti,"61,07%","54,52%","28,90%","35,32%","39,92%","56,77%","47,03%"
+2,PT. Batik Indonesia Air,"88,78%","88,72%","87,32%","84,75%","82,03%","74,89%","74,62%"
+3,PT. Citilink Indonesia,"86,19%","92,41%","90,73%","65,90%","69,69%","86,12%","91,27%"
+4,PT. Garuda Indonesia,"88,80%","91,38%","94,11%","92,80%","88,08%","87,78%","83,47%"
+5,PT. Indonesia Airasia,"82,03%","85,26%","84,95%","75,34%","64,89%","65,71%","91,07%"
+6,PT. Lion Mentari Airlines,"67,14%","77,90%","74,73%","75,48%","75,53%","65,43%","68,71%"
+7,PT. Nam Air,"88,76%","81,42%","83,74%","77,74%","69,85%","72,11%","74,61%"
+8,PT. Sriwijaya Air,"84,61%","82,76%","83,23%","72,38%","74,27%","79,67%","84,01%"
+9,PT. Transnusa Aviation Mandiri,"91,81%","82,51%","77,94%",-,"47,58%","50,48%","67,43%"
+10,PT. Trigana Air Service,"52,78%","65,49%","50,67%","45,63%","46,34%","72,57%","86,36%"
+11,PT. Wings Abadi Airlines,"65,39%","71,88%","71,29%","73,76%","76,05%","68,15%","72,74%"
+12,PT. Super Air Jet,-,-,-,"84,18%","80,08%","71,02%","63,22%"
+13,PT. Pelita Air Indonesia,-,-,-,-,"95,59%","90,30%","94,33%"
+14,PT. BBN Airlines Indonesia,-,-,-,-,-,-,"90,14%"
+-,Total/Rata-rata,"78,60%","82,57%","81,76%","75,31%","76,02%","73,99%","76,80%"]
+
+aku punya table PRODUKSI ANGKUTAN UDARA NIAGA BERJADWAL DALAM NEGERI 2020-2024 dari 19 maskapai . dan daftar maskapai berikut ada di table ini tapi tidak ada di table otp dalam negri : PT CARDIG AIR, MY INDO AIRLINES, , PT RUSKY AERO INTERNATIONAL, PT TRAVEL EXPRESS AVIATION SERVICE, PT TRI MG AIRLINES . dan satu anomali di penamaan saja PT PELITA AIR SERVICE(di produksi) = PT Pelita Air Indonesia(di otp).
